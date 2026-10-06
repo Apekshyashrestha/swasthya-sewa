@@ -1,4 +1,4 @@
-# Swasthya Sewa — Digital Healthcare & Hospital Management System (Frontend)
+# Swasthya Sewa — Digital Healthcare & Hospital Management System 
 
 A modern, responsive, and feature-rich Hospital Management System (HMS) frontend built with **React 19**, **Vite**, and **Tailwind CSS**.
 
