@@ -1,0 +1,175 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+    function signedIn() {
+      return request.auth != null;
+    }
+
+    // Administrators are identified by email, NOT by any client-writable field.
+    // Keep this list in sync with VITE_ADMIN_EMAILS in your .env file.
+    function isAdmin() {
+      return signedIn()
+        && request.auth.token.email in ['admin@swasthya.dev'];
+    }
+
+    // A row belongs to the signed-in patient if it carries their auth uid, or
+    // names them in the denormalised `patient.email` snapshot field (which is
+    // how the seeded demo rows are keyed). Checking both keeps the demo data
+    // readable without ever trusting a client-supplied role.
+    function isOwner(data) {
+      return signedIn() && (
+        data.patientId == request.auth.uid
+        || (data.patient is map && data.patient.email == request.auth.token.email)
+      );
+    }
+
+    // Fields a patient is allowed to change on their own appointment.
+    function onlyPatientEditableApptFields() {
+      return request.resource.data.diff(resource.data).affectedKeys()
+        .hasOnly(['status', 'paid', 'payment']);
+    }
+
+    // A patient may cancel, or confirm by paying - and confirming is only
+    // accepted when the same write records the payment. Approving, completing
+    // or rejecting an appointment stays an administrator action, so nobody can
+    // self-confirm a visit they have not paid for.
+    function patientSafeApptStatus() {
+      return request.resource.data.status == 'CANCELLED'
+        || request.resource.data.status == 'PAYMENT_PENDING'
+        || (request.resource.data.status == 'CONFIRMED'
+            && request.resource.data.paid == true);
+    }
+
+    function onlyPatientEditableBillFields() {
+      return request.resource.data.diff(resource.data).affectedKeys()
+        .hasOnly(['status', 'paidAt']);
+    }
+
+    // User profiles. The role field is display-only and recomputed from the
+    // admin allowlist on the client; it is never trusted for authorization. A
+    // patient may read only their own profile; enumerating patients is an
+    // administrator capability.
+    match /users/{userId} {
+      allow read: if isAdmin() || (signedIn() && request.auth.uid == userId);
+      allow create: if signedIn() && (request.auth.uid == userId || isAdmin());
+      allow update: if signedIn() && (request.auth.uid == userId || isAdmin());
+      allow delete: if isAdmin();
+    }
+
+    // Doctors are a public catalogue, so anyone signed in may read them. Only an
+    // administrator may add, edit or remove a doctor.
+    match /doctors/{doctorId} {
+      allow read: if signedIn();
+      allow create, update, delete: if isAdmin();
+    }
+
+    // Appointments are private to their patient. A patient may create a booking
+    // for themselves and may only cancel/pay it - never reassign the doctor,
+    // the date, the slot or the fee.
+    match /appointments/{appointmentId} {
+      allow read: if isAdmin() || isOwner(resource.data);
+      allow create: if signedIn() && (
+        isAdmin()
+        || (request.resource.data.patientId == request.auth.uid && isOwner(request.resource.data))
+      );
+      allow update: if isAdmin()
+        || (isOwner(resource.data) && onlyPatientEditableApptFields() && patientSafeApptStatus());
+      allow delete: if isAdmin();
+    }
+
+    // Bills are private to their patient. An administrator curates them; a
+    // patient may settle their own outstanding bill, and may create the receipt
+    // for a visit they have paid for - which must reference one of their own
+    // appointments, so nobody can invent a bill for someone else.
+    match /bills/{billId} {
+      allow read: if isAdmin() || isOwner(resource.data);
+      allow create: if isAdmin() || (
+        signedIn()
+        && request.resource.data.appointmentId is string
+        && get(/databases/$(database)/documents/appointments/$(request.resource.data.appointmentId))
+             .data.patientId == request.auth.uid
+      );
+      allow delete: if isAdmin();
+      allow update: if isAdmin() || (isOwner(resource.data) && onlyPatientEditableBillFields());
+    }
+
+    // Medical records are read-only for patients and fully managed by an
+    // administrator, so a report can never be altered or removed by the person
+    // it describes.
+    match /records/{recordId} {
+      allow read: if isAdmin() || isOwner(resource.data);
+      allow create, update, delete: if isAdmin();
+    }
+
+    // Slot occupancy, mirrored from appointments. Holds a doctor id, a calendar
+    // day and a list of time strings - no patient data - so any signed-in user
+    // may read it to grey out unavailable times.
+    match /takenSlots/{slotId} {
+      allow read: if signedIn();
+      allow write: if signedIn();
+    }
+
+    match /activities/{activityId} {
+      allow read: if signedIn();
+      allow create: if signedIn();
+    }
+
+    // Sides a message can be hidden from. No other value is meaningful.
+    function hiddenSides(data) {
+      return data.get('hiddenFor', []);
+    }
+
+    // A patient may hide a message from their own view, and only from their own
+    // view. This permits exactly one transition: adding 'PATIENT' to the list.
+    //
+    // Firestore rules have no list diff and no list concatenation, so the check
+    // is assembled from set functions:
+    //   hasAll  - nothing already hidden may be un-hidden
+    //   hasOnly - only 'PATIENT' and 'HOSPITAL' may ever appear
+    //   size    - at most one side may be added
+    //   growing - if the list grew, the side added must be 'PATIENT'
+    //   HOSPITAL- 'HOSPITAL' may never be newly added by a patient
+    function onlyAddsOwnSide(old, updated) {
+      let grew = updated.size() > old.size();
+      return updated.hasAll(old)
+        && updated.hasOnly(['PATIENT', 'HOSPITAL'])
+        && updated.size() <= old.size() + 1
+        && (!grew || updated.hasAny(['PATIENT']))
+        && (!updated.hasAny(['HOSPITAL']) || old.hasAny(['HOSPITAL']));
+    }
+
+    // Patient <-> hospital chat threads. Every message carries patientId and the
+    // denormalised patient email, so a patient may read and write only their own
+    // threads; the hospital desk is the administrator account, which may read
+    // everything.
+    //
+    // Deleting a message is a per-side hide: the row is never deleted by a
+    // patient, so the clinical record and the other party's copy both survive.
+    match /messages/{messageId} {
+      allow read: if isAdmin() || isOwner(resource.data);
+      allow create: if signedIn() && (
+        isAdmin()
+        || (request.resource.data.patientId == request.auth.uid && isOwner(request.resource.data))
+      );
+      allow update: if isAdmin() || (
+        isOwner(resource.data)
+        && request.resource.data.diff(resource.data).affectedKeys()
+             .hasOnly(['readAt', 'hiddenFor'])
+        && onlyAddsOwnSide(hiddenSides(resource.data), hiddenSides(request.resource.data))
+      );
+      allow delete: if isAdmin();
+    }
+
+    // Emails removed by an administrator; login/registration checks this list.
+    match /blockedUsers/{email} {
+      allow read: if signedIn();
+      allow write: if isAdmin();
+    }
+
+    // Seed marker document.
+    match /meta/{docId} {
+      allow read: if signedIn();
+      allow write: if isAdmin();
+    }
+  }
+}

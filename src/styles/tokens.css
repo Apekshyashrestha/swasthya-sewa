@@ -1,0 +1,205 @@
+:root {
+  /* ---- Brand palette: teal/emerald medical ---- */
+  --brand-50: #eefbf7;
+  --brand-100: #d3f5ea;
+  --brand-200: #a9ead8;
+  --brand-300: #72d9c1;
+  --brand-400: #3cc0a5;
+  --brand-500: #16a68c;
+  --brand-600: #0b8571;
+  --brand-700: #0c6a5c;
+  --brand-800: #0e544b;
+  --brand-900: #0f463f;
+  --brand-950: #032b27;
+
+  /* ---- Accent (used for admin-only surfaces / highlights) ---- */
+  --accent-400: #60a5fa;
+  --accent-500: #3b82f6;
+  --accent-600: #2563eb;
+  --accent-700: #1d4ed8;
+
+  /* ---- Status ---- */
+  --success-50: #ecfdf5;
+  --success-500: #10b981;
+  --success-600: #059669;
+  --success-700: #047857;
+  --warning-50: #fffbeb;
+  --warning-500: #f59e0b;
+  --warning-600: #d97706;
+  --warning-700: #b45309;
+  --danger-50: #fef2f2;
+  --danger-500: #f43f5e;
+  --danger-600: #e11d48;
+  --danger-700: #be123c;
+  --info-50: #eff6ff;
+  --info-500: #3b82f6;
+  --info-600: #2563eb;
+
+  /* ---- Typography ---- */
+  --font-sans: "Inter", -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto,
+    "Helvetica Neue", Arial, sans-serif;
+  --font-mono: "JetBrains Mono", ui-monospace, SFMono-Regular, Menlo, monospace;
+
+  --text-2xs: 0.6875rem;
+  --text-xs: 0.75rem;
+  --text-sm: 0.8125rem;
+  --text-base: 0.875rem;
+  --text-md: 0.9375rem;
+  --text-lg: 1.0625rem;
+  --text-xl: 1.25rem;
+  --text-2xl: 1.5rem;
+  --text-3xl: 1.875rem;
+  --text-4xl: 2.25rem;
+
+  /* ---- Spacing ---- */
+  --sp-1: 0.25rem;
+  --sp-2: 0.5rem;
+  --sp-3: 0.75rem;
+  --sp-4: 1rem;
+  --sp-5: 1.25rem;
+  --sp-6: 1.5rem;
+  --sp-7: 1.75rem;
+  --sp-8: 2rem;
+  --sp-10: 2.5rem;
+  --sp-12: 3rem;
+  --sp-16: 4rem;
+
+  /* ---- Radii ---- */
+  --r-xs: 6px;
+  --r-sm: 8px;
+  --r-md: 10px;
+  --r-lg: 14px;
+  --r-xl: 18px;
+  --r-2xl: 24px;
+  --r-full: 999px;
+
+  /* ---- Motion ---- */
+  --ease: cubic-bezier(0.4, 0, 0.2, 1);
+  --ease-out: cubic-bezier(0.16, 1, 0.3, 1);
+  --t-fast: 120ms;
+  --t-base: 200ms;
+  --t-slow: 320ms;
+
+  /* ---- Layout ---- */
+  --sidebar-w: 260px;
+  --sidebar-w-collapsed: 76px;
+  --topbar-h: 68px;
+  --content-max: 1400px;
+}
+
+/* ============================ LIGHT THEME ============================ */
+:root,
+[data-theme="light"] {
+  color-scheme: light;
+
+  --bg-body: #f6f8f9;
+  --bg-surface: #ffffff;
+  --bg-surface-2: #f8fafb;
+  --bg-surface-3: #f1f5f6;
+  --bg-inset: #f4f7f8;
+
+  --sidebar-bg: #ffffff;
+  --sidebar-border: #e7ecee;
+
+  --text-primary: #0f1e21;
+  --text-secondary: #47606a;
+  --text-muted: #7b9099;
+  --text-inverse: #ffffff;
+  --text-brand: var(--brand-700);
+
+  --border: #e4eaec;
+  --border-strong: #d3dcdf;
+
+  --primary: var(--brand-600);
+  --primary-hover: var(--brand-700);
+  --primary-active: var(--brand-800);
+  --primary-soft: var(--brand-50);
+  --primary-soft-border: var(--brand-100);
+  --primary-contrast: #ffffff;
+
+  --shadow-xs: 0 1px 2px rgba(15, 30, 33, 0.05);
+  --shadow-sm: 0 1px 3px rgba(15, 30, 33, 0.06), 0 1px 2px rgba(15, 30, 33, 0.04);
+  --shadow-md: 0 4px 12px -2px rgba(15, 30, 33, 0.08),
+    0 2px 6px -2px rgba(15, 30, 33, 0.05);
+  --shadow-lg: 0 12px 28px -6px rgba(15, 30, 33, 0.12),
+    0 4px 10px -4px rgba(15, 30, 33, 0.06);
+  --shadow-xl: 0 24px 56px -12px rgba(15, 30, 33, 0.18);
+  --ring: 0 0 0 3px var(--brand-100);
+
+  --overlay: rgba(9, 25, 28, 0.45);
+  --overlay-blur: blur(3px);
+
+  --skeleton: linear-gradient(
+    90deg,
+    #eef2f3 25%,
+    #e3e9eb 37%,
+    #eef2f3 63%
+  );
+
+  --hero-grad: linear-gradient(135deg, #0c6a5c 0%, #0f8574 45%, #0b6f80 100%);
+  --auth-tint: rgba(15, 133, 116, 0.07);
+  --hero-glow-1: rgba(255, 255, 255, 0.14);
+  --hero-glow-2: rgba(58, 214, 190, 0.22);
+
+  --tint-success: var(--success-50);
+  --tint-warning: var(--warning-50);
+  --tint-danger: var(--danger-50);
+  --tint-info: var(--info-50);
+}
+
+/* ============================ DARK THEME ============================ */
+[data-theme="dark"] {
+  color-scheme: dark;
+
+  --bg-body: #081113;
+  --bg-surface: #0e1a1d;
+  --bg-surface-2: #132225;
+  --bg-surface-3: #182b2f;
+  --bg-inset: #0b1618;
+
+  --sidebar-bg: #0b1719;
+  --sidebar-border: #1c2f33;
+
+  --text-primary: #e8f1f2;
+  --text-secondary: #a3b8be;
+  --text-muted: #6f858c;
+  --text-inverse: #061214;
+  --text-brand: var(--brand-300);
+
+  --border: #1e3237;
+  --border-strong: #2a4249;
+
+  --primary: var(--brand-400);
+  --primary-hover: var(--brand-300);
+  --primary-active: var(--brand-200);
+  --primary-soft: rgba(22, 166, 140, 0.14);
+  --primary-soft-border: rgba(22, 166, 140, 0.28);
+  --primary-contrast: #04211d;
+
+  --shadow-xs: 0 1px 2px rgba(0, 0, 0, 0.3);
+  --shadow-sm: 0 1px 3px rgba(0, 0, 0, 0.4);
+  --shadow-md: 0 4px 14px -2px rgba(0, 0, 0, 0.5);
+  --shadow-lg: 0 14px 32px -8px rgba(0, 0, 0, 0.6);
+  --shadow-xl: 0 28px 64px -14px rgba(0, 0, 0, 0.7);
+  --ring: 0 0 0 3px rgba(22, 166, 140, 0.25);
+
+  --overlay: rgba(2, 10, 11, 0.7);
+  --overlay-blur: blur(4px);
+
+  --skeleton: linear-gradient(
+    90deg,
+    #142427 25%,
+    #1c3034 37%,
+    #142427 63%
+  );
+
+  --hero-grad: linear-gradient(135deg, #0a4038 0%, #0c5548 45%, #0a4451 100%);
+  --auth-tint: rgba(22, 166, 140, 0.1);
+  --hero-glow-1: rgba(255, 255, 255, 0.07);
+  --hero-glow-2: rgba(58, 214, 190, 0.16);
+
+  --success-50: rgba(16, 185, 129, 0.14);
+  --warning-50: rgba(245, 158, 11, 0.14);
+  --danger-50: rgba(244, 63, 94, 0.14);
+  --info-50: rgba(59, 130, 246, 0.14);
+}
