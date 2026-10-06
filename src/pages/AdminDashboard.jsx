@@ -3,6 +3,7 @@ import {
   BadgeIndianRupee,
   CalendarCheck2,
   CheckCircle2,
+  Clock,
   CreditCard,
   FileText,
   Mail,
@@ -25,6 +26,7 @@ import {
   formatMoney,
   formatRelative,
   isToday,
+  isStale,
   titleCase,
 } from "../lib/format.js";
 import { useToast } from "../context/useToast.js";
@@ -545,6 +547,7 @@ export default function AdminDashboard({ activeTab, onNavigate, search }) {
             appointments={appointments}
             patients={patients}
             doctorLoad={doctorLoad}
+            slotsTakenFor={slotsTakenFor}
             search={search}
             onNavigate={onNavigate}
             onStatus={setAppointmentStatus}
@@ -941,6 +944,7 @@ function AdminOverview({
   appointments,
   patients,
   doctorLoad,
+  slotsTakenFor,
   search,
   onNavigate,
   onStatus,
@@ -981,6 +985,12 @@ function AdminOverview({
   const visPatients = q
     ? patients.filter((p) => hit(p.name, p.email, p.phone))
     : patients;
+
+  // On-duty doctors float to the top; the rest dim below so the working
+  // roster reads first when the panel is busy.
+  const dutyDoctors = [...visDoctors].sort(
+    (a, b) => Number(b.available !== false) - Number(a.available !== false)
+  );
 
   return (
     <>
@@ -1028,7 +1038,7 @@ function AdminOverview({
         />
       </div>
 
-      <div className="grid" style={{ gridTemplateColumns: "minmax(0, 1fr) minmax(0, 1fr)" }}>
+      <div className="grid grid-2">
         <Card>
           <CardHeader
             title="Awaiting approval"
@@ -1062,7 +1072,7 @@ function AdminOverview({
         <Card>
           <CardHeader
             title="Doctors on duty today"
-            subtitle="Current slot load"
+            subtitle={`${stats.onDuty} of ${visDoctors.length} accepting bookings`}
             action={
               <Button size="sm" variant="ghost" onClick={() => onNavigate("Doctors")}>
                 Manage
@@ -1079,19 +1089,34 @@ function AdminOverview({
               />
             ) : (
               <div className="list">
-                {visDoctors.slice(0, 5).map((d) => {
+                {dutyDoctors.slice(0, 5).map((d) => {
                   const load = doctorLoad(d);
+                  const cap = CONSULT_SLOTS.length;
+                  const taken = slotsTakenFor(d).length;
+                  const pct = d.available && cap ? Math.round((taken / cap) * 100) : 0;
+                  const tone = d.available ? load.chip.replace("chip-", "") : "off";
                   return (
-                    <div className="list-row" key={d.id}>
-                      <Avatar src={d.avatar} name={d.name} size="sm" />
+                    <div className={`duty-row${d.available ? "" : " is-off"}`} key={d.id}>
+                      <span className={`duty-avatar${d.available ? " is-on" : ""}`}>
+                        <Avatar src={d.avatar} name={d.name} size="sm" />
+                        <span className="duty-dot" aria-hidden="true" />
+                      </span>
                       <div className="list-main">
                         <div className="list-title truncate">{d.name}</div>
-                        <div className="list-meta">
+                        <div className="list-meta truncate">
                           {d.specialty} · {formatMoney(d.fee)}
+                        </div>
+                        <div className="duty-meter" aria-hidden="true">
+                          <span
+                            className={`duty-meter-fill is-${tone}`}
+                            style={{ width: `${pct}%` }}
+                          />
                         </div>
                       </div>
                       <div className="list-side">
-                        <span className={`chip ${load.chip}`}>{load.label}</span>
+                        <span className={`chip ${d.available ? load.chip : ""}`}>
+                          {d.available ? load.label : "Off duty"}
+                        </span>
                       </div>
                     </div>
                   );
@@ -1187,19 +1212,44 @@ function AdminOverview({
 }
 
 function ApprovalRow({ appointment: a, onStatus }) {
+  const patientName = a.patient?.name ?? a.patientId ?? "Patient";
+  const doctorName = a.doctor?.name ?? a.doctorId ?? "Doctor";
+  const requestedAt = a.createdAt ?? a.statusUpdatedAt;
+  const stale = isStale(requestedAt);
+
   return (
-    <div className="list-row">
-      <Avatar src={a.doctor?.avatar} name={a.doctor?.name ?? "Doctor"} size="sm" />
-      <div className="list-main">
-        <div className="list-title truncate">
-          {a.patient?.name ?? a.patientId ?? "Patient"}
+    <div className={`approval-row${stale ? " is-stale" : ""}`}>
+      <span className="approval-rail" aria-hidden="true" />
+      <Avatar src={a.patient?.avatar} name={patientName} size="sm" />
+      <div className="approval-main">
+        <div className="approval-top">
+          <span className="list-title truncate">{patientName}</span>
         </div>
-        <div className="list-meta">
-          {a.doctor?.name ?? a.doctorId} · {formatDate(a.date)}
-          {a.slot ? ` · ${a.slot}` : ""}
+        <div className="approval-meta">
+          <span className="approval-chip">
+            <Stethoscope size={13} aria-hidden="true" />
+            <span className="truncate">{doctorName}</span>
+          </span>
+          <span className="approval-chip">
+            <CalendarCheck2 size={13} aria-hidden="true" />
+            {formatDate(a.date)}
+            {a.slot ? ` · ${a.slot}` : ""}
+          </span>
+          {a.reason && (
+            <span className="approval-chip">
+              <FileText size={13} aria-hidden="true" />
+              <span className="truncate">{a.reason}</span>
+            </span>
+          )}
         </div>
+        {requestedAt && (
+          <div className="approval-age">
+            <Clock size={12} aria-hidden="true" />
+            Requested {formatRelative(requestedAt)}
+          </div>
+        )}
       </div>
-      <div className="list-side">
+      <div className="approval-actions">
         <Button
           size="sm"
           variant="success"
@@ -1210,9 +1260,10 @@ function ApprovalRow({ appointment: a, onStatus }) {
         </Button>
         <Button
           size="sm"
-          variant="danger"
+          variant="ghost"
           icon={XCircle}
           onClick={() => onStatus(a, "CANCELLED")}
+          aria-label={`Reject ${patientName}'s request`}
         >
           Reject
         </Button>
@@ -1430,7 +1481,7 @@ function PatientsAdmin({ patients, search, selected, onSelect, onDelete, rowsFor
         <Card>
           <CardBody flush>
             <div className="table-wrap">
-              <table className="table">
+              <table className="table table-stack">
                 <thead>
                   <tr>
                     <th>Patient</th>
@@ -1464,16 +1515,16 @@ function PatientsAdmin({ patients, search, selected, onSelect, onDelete, rowsFor
                             </div>
                           </div>
                         </td>
-                        <td className="t-sm t-secondary">{p.phone ?? "—"}</td>
-                        <td className="t-sm t-secondary">{p.address ?? "—"}</td>
-                        <td className="t-center t-sm t-num">
+                        <td className="t-sm t-secondary" data-label="Contact">{p.phone ?? "—"}</td>
+                        <td className="t-sm t-secondary" data-label="Location">{p.address ?? "—"}</td>
+                        <td className="t-center t-sm t-num" data-label="Visits">
                           {rows.appointments.length}
                         </td>
-                        <td className="t-center t-sm t-num">{rows.bills.length}</td>
-                        <td className="t-center t-sm t-num">
+                        <td className="t-center t-sm t-num" data-label="Bills">{rows.bills.length}</td>
+                        <td className="t-center t-sm t-num" data-label="Records">
                           {rows.records.length}
                         </td>
-                        <td className="t-right">
+                        <td className="t-right" data-label="">
                           <div
                             className="row row-2"
                             style={{ justifyContent: "flex-end" }}
@@ -1840,11 +1891,11 @@ function BillingAdmin({ bills, stats, search, onCreate, onMarkPaid }) {
             />
           ) : (
             <div className="table-wrap">
-              <table className="table">
+              <table className="table table-stack">
                 <thead>
                   <tr>
-                    <th>Invoice</th>
                     <th>Patient</th>
+                    <th>Invoice</th>
                     <th>Raised</th>
                     <th className="t-right">Amount</th>
                     <th>Status</th>
@@ -1854,9 +1905,6 @@ function BillingAdmin({ bills, stats, search, onCreate, onMarkPaid }) {
                 <tbody>
                   {filtered.map((b) => (
                     <tr key={b.id}>
-                      <td className="t-mono t-xs">
-                        #{String(b.id).slice(-6).toUpperCase()}
-                      </td>
                       <td>
                         <div className="row row-3">
                           <Avatar
@@ -1874,16 +1922,19 @@ function BillingAdmin({ bills, stats, search, onCreate, onMarkPaid }) {
                           </div>
                         </div>
                       </td>
-                      <td className="t-sm t-secondary">
+                      <td className="t-mono t-xs" data-label="Invoice">
+                        #{String(b.id).slice(-6).toUpperCase()}
+                      </td>
+                      <td className="t-sm t-secondary" data-label="Raised">
                         {formatDate(b.createdAt)}
                       </td>
-                      <td className="t-right t-bold t-num">
+                      <td className="t-right t-bold t-num" data-label="Amount">
                         {formatMoney(b.amount)}
                       </td>
-                      <td>
+                      <td data-label="Status">
                         <StatusBadge status={b.status} />
                       </td>
-                      <td className="t-right">
+                      <td className="t-right" data-label="">
                         {b.status === "PENDING" ? (
                           <Button size="sm" onClick={() => onMarkPaid(b)}>
                             Mark paid

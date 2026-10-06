@@ -979,7 +979,7 @@ function DashboardTab({
         />
       </div>
 
-      <div className="grid" style={{ gridTemplateColumns: "minmax(0, 1.6fr) minmax(0, 1fr)" }}>
+      <div className="grid grid-dash-main">
         <Card>
           <CardHeader
             title="Next appointments"
@@ -1056,7 +1056,7 @@ function DashboardTab({
         </Card>
       </div>
 
-      <div className="grid" style={{ gridTemplateColumns: "minmax(0, 1fr) minmax(0, 1fr)" }}>
+      <div className="grid grid-dash-half">
         <Card>
           <CardHeader title="Recent activity" subtitle="Latest updates on your care" />
           <CardBody>

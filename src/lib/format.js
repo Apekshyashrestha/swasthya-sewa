@@ -59,6 +59,15 @@ export function formatRelative(value) {
 export const isToday = (value) =>
   !!value && new Date(value).toDateString() === new Date().toDateString();
 
+// True when a timestamp is older than `days`. Kept in this module so the
+// component tree never has to read the clock while rendering.
+export function isStale(value, days = 2) {
+  if (!value) return false;
+  const d = new Date(value);
+  if (Number.isNaN(d.getTime())) return false;
+  return Date.now() - d.getTime() > days * 86400000;
+}
+
 export function greetingFor(date = new Date()) {
   const h = date.getHours();
   if (h < 5) return "Good night";

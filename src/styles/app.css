@@ -135,6 +135,14 @@ ol {
 .grid-auto {
   grid-template-columns: repeat(auto-fill, minmax(260px, 1fr));
 }
+/* Patient dashboard split rows: main+aside and even. Both collapse to a
+   single column once the shell switches to its mobile layout. */
+.grid-dash-main { grid-template-columns: minmax(0, 1.6fr) minmax(0, 1fr); }
+.grid-dash-half { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+@media (max-width: 900px) {
+  .grid-dash-main,
+  .grid-dash-half { grid-template-columns: minmax(0, 1fr); }
+}
 
 .truncate {
   overflow: hidden;
@@ -189,7 +197,12 @@ ol {
 /* ---------------------------- App shell ---------------------------- */
 .shell {
   display: flex;
-  min-height: 100vh;
+  height: 100vh;
+  height: 100dvh;
+  /* The app owns its own scrolling: the shell is a fixed box and .page
+     scrolls inside it. Relying on position: sticky against the document
+     instead makes the topbar scroll away on mobile. */
+  overflow: hidden;
   background: var(--bg-body);
 }
 
@@ -198,6 +211,9 @@ ol {
   display: flex;
   flex-direction: column;
   min-width: 0;
+  /* Without this a flex child refuses to shrink below its content, so the
+     shell would grow and the page would scroll the whole document again. */
+  min-height: 0;
 }
 
 /* --- Sidebar --- */
@@ -494,6 +510,11 @@ ol {
 /* --- Page body --- */
 .page {
   flex: 1;
+  min-height: 0;
+  overflow-y: auto;
+  -webkit-overflow-scrolling: touch;
+  /* Keep the page's own scrolling from rubber-banding the document behind it. */
+  overscroll-behavior: contain;
   padding: var(--sp-7) var(--sp-6) var(--sp-12);
   width: 100%;
 }
@@ -1296,6 +1317,125 @@ select.control-select,
   flex-shrink: 0;
 }
 
+/* ---------------------------- Admin review queue ---------------------------- */
+.approval-row {
+  position: relative;
+  display: flex;
+  align-items: flex-start;
+  gap: var(--sp-4);
+  padding: var(--sp-4) var(--sp-6) var(--sp-4) calc(var(--sp-6) + 5px);
+  border-bottom: 1px solid var(--border);
+  transition: background-color var(--t-fast) var(--ease);
+}
+.approval-row:last-child { border-bottom: none; }
+.approval-row:hover { background: var(--bg-surface-2); }
+.approval-rail {
+  position: absolute;
+  inset: 0 auto 0 0;
+  width: 3px;
+  background: transparent;
+}
+.approval-row.is-stale .approval-rail { background: var(--warning-500); }
+.approval-main { flex: 1; min-width: 0; }
+.approval-top {
+  display: flex;
+  align-items: center;
+  gap: var(--sp-2);
+  min-width: 0;
+}
+.approval-meta {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px var(--sp-3);
+  margin-top: 6px;
+}
+.approval-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  min-width: 0;
+  font-size: var(--text-xs);
+  color: var(--text-secondary);
+}
+.approval-chip svg { color: var(--text-muted); flex-shrink: 0; }
+.approval-age {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  margin-top: 7px;
+  font-size: var(--text-2xs);
+  font-weight: 650;
+  letter-spacing: 0.02em;
+  color: var(--text-muted);
+}
+.approval-age svg { flex-shrink: 0; }
+.approval-row.is-stale .approval-age { color: var(--warning-700); }
+[data-theme="dark"] .approval-row.is-stale .approval-age { color: var(--warning-500); }
+.approval-actions {
+  display: flex;
+  align-items: center;
+  gap: var(--sp-2);
+  flex-shrink: 0;
+}
+
+/* ---------------------------- Doctors on duty ---------------------------- */
+.duty-row {
+  display: flex;
+  align-items: center;
+  gap: var(--sp-4);
+  padding: var(--sp-4) var(--sp-6);
+  border-bottom: 1px solid var(--border);
+  transition: background-color var(--t-fast) var(--ease);
+}
+.duty-row:last-child { border-bottom: none; }
+.duty-row:hover { background: var(--bg-surface-2); }
+.duty-row.is-off { opacity: 0.62; }
+.duty-avatar {
+  position: relative;
+  display: inline-flex;
+  flex-shrink: 0;
+}
+.duty-dot {
+  position: absolute;
+  right: -1px;
+  bottom: -1px;
+  width: 11px;
+  height: 11px;
+  border-radius: var(--r-full);
+  background: var(--text-muted);
+  border: 2px solid var(--bg-surface);
+}
+.duty-avatar.is-on .duty-dot {
+  background: var(--success-500);
+  box-shadow: 0 0 0 3px color-mix(in srgb, var(--success-500) 22%, transparent);
+}
+.duty-meter {
+  height: 4px;
+  margin-top: 8px;
+  border-radius: var(--r-full);
+  background: var(--bg-surface-3);
+  overflow: hidden;
+}
+.duty-meter-fill {
+  display: block;
+  height: 100%;
+  border-radius: inherit;
+  transition: width var(--t-base) var(--ease);
+}
+.duty-meter-fill.is-free { background: var(--success-500); }
+.duty-meter-fill.is-busy { background: var(--warning-500); }
+.duty-meter-fill.is-full { background: var(--danger-500); }
+
+@media (max-width: 640px) {
+  .approval-row,
+  .duty-row { flex-wrap: wrap; }
+  .approval-actions {
+    width: 100%;
+    justify-content: flex-end;
+    margin-top: var(--sp-1);
+  }
+}
+
 /* ---------------------------- Chat ---------------------------- */
 .chat {
   display: grid;
@@ -1702,6 +1842,64 @@ table.table {
 }
 .table tbody tr:hover {
   background: var(--bg-surface-2);
+}
+
+/* On small screens a wide table reflows into stacked cards so no column has
+   to be reached by sideways scrolling. Cells carry data-label for their
+   caption; the first cell is the card heading. */
+@media (max-width: 720px) {
+  .table.table-stack thead {
+    display: none;
+  }
+  .table.table-stack,
+  .table.table-stack tbody,
+  .table.table-stack tr,
+  .table.table-stack td {
+    display: block;
+    width: 100%;
+  }
+  .table.table-stack tr {
+    padding: var(--sp-4) var(--sp-5);
+    border-bottom: 1px solid var(--border);
+  }
+  .table.table-stack tr:last-child {
+    border-bottom: none;
+  }
+  .table.table-stack tr:hover {
+    background: var(--bg-surface-2);
+  }
+  .table.table-stack td {
+    border: none;
+    padding: 0;
+    font-size: var(--text-base);
+  }
+  .table.table-stack td + td {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: var(--sp-4);
+    margin-top: 8px;
+    text-align: right;
+  }
+  .table.table-stack td + td::before {
+    content: attr(data-label);
+    flex-shrink: 0;
+    font-size: var(--text-2xs);
+    font-weight: 700;
+    letter-spacing: 0.06em;
+    text-transform: uppercase;
+    color: var(--text-muted);
+    text-align: left;
+  }
+  .table.table-stack td[data-label=""]::before {
+    content: none;
+  }
+  .table.table-stack td[data-label=""] {
+    justify-content: flex-end;
+  }
+  .table.table-stack td[data-label=""]:empty {
+    display: none;
+  }
 }
 
 /* ---------------------------- Empty / loading ---------------------------- */
@@ -2155,8 +2353,49 @@ table.table {
 @media (max-width: 1100px) {
   .grid-4 { grid-template-columns: repeat(2, minmax(0, 1fr)); }
   .grid-3 { grid-template-columns: repeat(2, minmax(0, 1fr)); }
-  .auth { grid-template-columns: 1fr; }
-  .auth-aside { display: none; }
+  .auth {
+    grid-template-columns: minmax(0, 1fr);
+    /* One column: header row sized to content, form row takes the rest. */
+    grid-template-rows: auto minmax(0, 1fr);
+    /* dvh keeps the form clear of the mobile browser's collapsing address bar. */
+    min-height: 100dvh;
+  }
+  /* Desktop splits the screen 50/50. Below this width the panel becomes a
+     compact gradient header instead of being removed, so the login screen
+     still carries the product's identity rather than showing a bare form. */
+  .auth-aside {
+    display: flex;
+    justify-content: center;
+    padding: var(--sp-7) var(--sp-5);
+  }
+  .auth-pitch { margin-block: 0; }
+  .auth-pitch h1 {
+    font-size: var(--text-2xl);
+    line-height: 1.2;
+    max-width: 24ch;
+  }
+  .auth-pitch p {
+    font-size: var(--text-sm);
+    max-width: 64ch;
+    margin-top: var(--sp-3);
+  }
+  .auth-features {
+    display: grid;
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+    gap: var(--sp-3);
+    margin-top: var(--sp-5);
+  }
+  .auth-feature {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: var(--sp-2);
+    font-size: var(--text-xs);
+    line-height: 1.45;
+  }
+  .auth-feature-icon {
+    width: 30px;
+    height: 30px;
+  }
 }
 
 @media (max-width: 900px) {
@@ -2215,20 +2454,76 @@ table.table {
   .grid-2,
   .grid-3,
   .grid-4,
-  .stat-grid,
   .hero-stats {
     grid-template-columns: minmax(0, 1fr);
   }
   .grid-auto { grid-template-columns: minmax(0, 1fr); }
+  /* Metric cards stay two-up. Collapsing them to one column turns four cards
+     into a full screen of scrolling before you reach the actual content. */
+  .stat-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: var(--sp-3);
+  }
+  .stat-card { padding: var(--sp-4); }
   .page-head { align-items: stretch; }
   .list-row { flex-wrap: wrap; }
   .list-side { width: 100%; justify-content: flex-end; }
-  .auth-main { padding: var(--sp-6) var(--sp-4); }
-  .modal-overlay { padding: var(--sp-3); align-items: flex-end; }
-  .modal { max-height: 92vh; }
-.segmented-block { flex-direction: column; }
+.auth-main { padding: var(--sp-6) var(--sp-4); }
+  .segmented-block { flex-direction: column; }
   /* Icon-only buttons, so a labelled action does not crowd the chat header. */
   .hide-sm { display: none; }
+
+  /* Login: stack the feature list so nothing runs out of horizontal room,
+     and tighten the header/form padding for a narrow viewport. */
+  .auth-aside { padding: var(--sp-6) var(--sp-4); }
+  .auth-pitch h1 { font-size: var(--text-xl); max-width: none; }
+  .auth-features {
+    grid-template-columns: minmax(0, 1fr);
+    gap: var(--sp-2);
+    margin-top: var(--sp-4);
+  }
+  .auth-feature {
+    flex-direction: row;
+    align-items: center;
+    gap: var(--sp-3);
+    font-size: var(--text-sm);
+  }
+  .auth-feature-icon { width: 32px; height: 32px; flex-shrink: 0; }
+
+  /* Comfortable touch targets: 38-40px sits under the ~44px guideline. */
+  .btn { height: 44px; padding: 0 var(--sp-5); }
+  .icon-btn { width: 44px; height: 44px; }
+  .menu-toggle { width: 44px; height: 44px; }
+
+  /* Modals read better as bottom sheets on a phone than as centred boxes. */
+  .modal-overlay { padding: 0; align-items: flex-end; }
+  .modal {
+    max-width: none;
+    width: 100%;
+    max-height: 92vh;
+    border-radius: var(--r-xl) var(--r-xl) 0 0;
+  }
+  .modal-foot { padding-bottom: calc(var(--sp-5) + env(safe-area-inset-bottom)); }
+  .modal-foot > .btn { width: 100%; }
+
+  /* Tighter cells let more columns fit before the row scrolls sideways. */
+  .table th,
+  .table td { padding-left: var(--sp-3); padding-right: var(--sp-3); font-size: var(--text-sm); }
+
+  /* Leave a little more room for content and clear the mobile browser chrome. */
+  .page { padding: var(--sp-4) var(--sp-4) calc(var(--sp-12) + env(safe-area-inset-bottom)); }
+  .hero { padding: var(--sp-5); }
+
+  /* Notifications: anchoring the dropdown to the bell leaves it too narrow and
+     partly off-screen once the avatar sits beside it. Drop the anchor and let
+     the panel span the viewport as a sheet under the topbar instead. */
+  .notif { position: static; }
+  .notif-panel {
+    left: var(--sp-4);
+    right: var(--sp-4);
+    width: auto;
+    max-height: calc(100dvh - var(--topbar-h) - var(--sp-6));
+  }
 }
 /* ---------------------------- report preview ---------------------------- */
 .report-meta {
