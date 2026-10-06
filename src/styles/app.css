@@ -2522,9 +2522,13 @@ table.table {
 
   /* Notifications: anchoring the dropdown to the bell leaves it too narrow and
      partly off-screen once the avatar sits beside it. Drop the anchor and let
-     the panel span the viewport as a sheet under the topbar instead. */
+     the panel span the viewport as a sheet under the topbar instead. Using
+     position:fixed (not absolute) keeps it out of the sticky topbar's paint
+     layer, which is what made the text render blurred on mobile browsers. */
   .notif { position: static; }
   .notif-panel {
+    position: fixed;
+    top: calc(var(--topbar-h) + 8px);
     left: var(--sp-4);
     right: var(--sp-4);
     width: auto;
