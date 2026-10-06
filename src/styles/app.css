@@ -2429,6 +2429,12 @@ table.table {
   .topbar {
     padding: 0 var(--sp-4);
     gap: var(--sp-3);
+    /* The glass blur makes the notification sheet (a child of the topbar)
+       render soft on mobile browsers, so the text becomes unreadable. Use an
+       opaque bar with no backdrop-filter here. */
+    background: var(--bg-surface);
+    backdrop-filter: none;
+    -webkit-backdrop-filter: none;
   }
   .topbar-title { display: none; }
   .search-kbd { display: none; }
