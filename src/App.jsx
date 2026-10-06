@@ -49,6 +49,23 @@ function Root() {
     document.documentElement.setAttribute("data-theme", theme);
   }, [theme]);
 
+  const activeShellTab = isAdmin ? adminTab : patientTab;
+
+  // The overview page has no search box, so drop any in-flight query when
+  // navigating to it rather than leaving its lists silently filtered.
+  const navigateTo = useCallback((tab, setTab) => {
+    setTab(tab);
+    if (tab === "Dashboard") setSearch("");
+  }, []);
+  const navigateAdmin = useCallback(
+    (tab) => navigateTo(tab, setAdminTab),
+    [navigateTo]
+  );
+  const navigatePatient = useCallback(
+    (tab) => navigateTo(tab, setPatientTab),
+    [navigateTo]
+  );
+
   const resetSessionState = useCallback(() => {
     setSearch("");
     setPatientTab(PATIENT_TABS[0].value);
@@ -170,6 +187,7 @@ function Root() {
     brandSubtitle: isAdmin ? "Admin panel" : "Patient portal",
     searchValue: search,
     onSearchChange: setSearch,
+    showSearch: activeShellTab !== "Dashboard",
     onLogout: handleLogout,
   };
 
@@ -232,8 +250,8 @@ useEffect(() => {
 
   const openNotification = (n) => {
     if (!n?.tab) return;
-    if (isAdmin) setAdminTab(n.tab);
-    else setPatientTab(n.tab);
+    if (isAdmin) navigateAdmin(n.tab);
+    else navigatePatient(n.tab);
     setNotifOpen(false);
     setSeenAt(writeSeenAt(user?.id));
   };
@@ -279,7 +297,7 @@ useEffect(() => {
           {...shellProps}
           navSections={ADMIN_NAV}
           activeTab={adminTab}
-          onNavigate={setAdminTab}
+          onNavigate={navigateAdmin}
           searchPlaceholder="Search patients, doctors, bills…"
           notifications={notifications}
           notificationCount={unreadCount}
@@ -289,7 +307,7 @@ useEffect(() => {
         >
           <AdminDashboard
             activeTab={adminTab}
-            onNavigate={setAdminTab}
+            onNavigate={navigateAdmin}
             search={search}
           />
         </AppShell>
@@ -298,7 +316,7 @@ useEffect(() => {
           {...shellProps}
           navSections={PATIENT_NAV}
           activeTab={patientTab}
-          onNavigate={setPatientTab}
+          onNavigate={navigatePatient}
           searchPlaceholder="Search doctors and specialties…"
           notifications={notifications}
           notificationCount={unreadCount}
@@ -311,7 +329,7 @@ useEffect(() => {
             onOpenProfile={openProfile}
             search={search}
             activeTab={patientTab}
-            onNavigate={setPatientTab}
+            onNavigate={navigatePatient}
           />
         </AppShell>
       )}

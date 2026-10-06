@@ -385,6 +385,7 @@ export default function PatientPortal({ user, onOpenProfile, search, activeTab, 
           <AppointmentsTab
             appointments={appointments}
             loading={loading}
+            search={search}
             onCancel={cancelAppointment}
             onBook={openBooking}
             onPay={setPayTarget}
@@ -395,6 +396,7 @@ export default function PatientPortal({ user, onOpenProfile, search, activeTab, 
           <ConsultationTab
             appointments={confirmed}
             loading={loading}
+            search={search}
             upcoming={upcoming}
             onMessage={askHospital}
           />
@@ -427,6 +429,7 @@ export default function PatientPortal({ user, onOpenProfile, search, activeTab, 
           <BillingTab
             bills={bills}
             loading={loading}
+            search={search}
             outstanding={outstanding}
             paidTotal={paidTotal}
             onPay={payBill}
@@ -437,6 +440,7 @@ export default function PatientPortal({ user, onOpenProfile, search, activeTab, 
           <RecordsTab
             records={records}
             loading={loading}
+            search={search}
             onView={setRecordView}
             onDownload={downloadRecord}
           />
@@ -1330,7 +1334,8 @@ function AppointmentRow({ appointment: a, onCancel, onPay, showActions = true })
   );
 }
 
-function AppointmentsTab({ appointments, loading, onCancel, onBook, onPay }) {
+function AppointmentsTab({ appointments, loading, search, onCancel, onBook, onPay }) {
+  const q = search.trim().toLowerCase();
   const sorted = useMemo(
     () =>
       [...appointments].sort(
@@ -1338,6 +1343,16 @@ function AppointmentsTab({ appointments, loading, onCancel, onBook, onPay }) {
       ),
     [appointments]
   );
+
+  const filtered = q
+    ? sorted.filter(
+        (a) =>
+          a.doctor?.name?.toLowerCase().includes(q) ||
+          a.doctor?.specialty?.toLowerCase().includes(q) ||
+          a.reason?.toLowerCase().includes(q) ||
+          a.status?.toLowerCase().includes(q)
+      )
+    : sorted;
 
   const today = sorted.filter((a) => isToday(a.date));
 
@@ -1349,7 +1364,9 @@ function AppointmentsTab({ appointments, loading, onCancel, onBook, onPay }) {
           <p className="t-sm t-muted" style={{ marginTop: 4 }}>
             {loading
               ? "Loading…"
-              : `${appointments.length} total · ${today.length} today`}
+              : q
+                ? `${filtered.length} of ${appointments.length} appointments`
+                : `${appointments.length} total · ${today.length} today`}
           </p>
         </div>
         <Button icon={CalendarPlus} onClick={() => onBook()}>
@@ -1363,20 +1380,26 @@ function AppointmentsTab({ appointments, loading, onCancel, onBook, onPay }) {
             <div style={{ padding: "var(--sp-6)" }}>
               <LoadingBlock />
             </div>
-          ) : sorted.length === 0 ? (
+          ) : filtered.length === 0 ? (
             <EmptyState
               icon={CalendarCheck2}
-              title="No appointments yet"
-              text="When you book a visit it will appear here with its status, so you can message your doctor."
+              title={q ? "No matching appointments" : "No appointments yet"}
+              text={
+                q
+                  ? "Search by doctor, specialty, reason or status."
+                  : "When you book a visit it will appear here with its status, so you can message your doctor."
+              }
               action={
-                <Button icon={CalendarPlus} onClick={() => onBook()}>
-                  Book an appointment
-                </Button>
+                q ? undefined : (
+                  <Button icon={CalendarPlus} onClick={() => onBook()}>
+                    Book an appointment
+                  </Button>
+                )
               }
             />
           ) : (
             <div className="list">
-              {sorted.map((a) => (
+              {filtered.map((a) => (
                 <AppointmentRow
                   key={a.id}
                   appointment={a}
@@ -1394,8 +1417,17 @@ function AppointmentsTab({ appointments, loading, onCancel, onBook, onPay }) {
 
 /* ============================== CONSULTATION ============================== */
 
-function ConsultationTab({ appointments, loading, upcoming, onMessage }) {
+function ConsultationTab({ appointments, loading, search, upcoming, onMessage }) {
   const next = upcoming[0];
+  const q = search.trim().toLowerCase();
+  const filtered = q
+    ? appointments.filter(
+        (a) =>
+          a.doctor?.name?.toLowerCase().includes(q) ||
+          a.doctor?.specialty?.toLowerCase().includes(q) ||
+          a.reason?.toLowerCase().includes(q)
+      )
+    : appointments;
 
   return (
     <>
@@ -1414,23 +1446,27 @@ function ConsultationTab({ appointments, loading, upcoming, onMessage }) {
             <LoadingBlock />
           </CardBody>
         </Card>
-      ) : appointments.length === 0 ? (
+      ) : filtered.length === 0 ? (
         <Card>
           <CardBody>
             <EmptyState
               icon={Stethoscope}
-              title="No confirmed consultations"
+              title={
+                q ? "No matching consultations" : "No confirmed consultations"
+              }
               text={
-                next
-                  ? `Your ${formatDate(next.date)} visit is still awaiting approval. You can message the doctor here the moment it is confirmed.`
-                  : "Once a doctor confirms one of your appointments, you can start a conversation with them here."
+                q
+                  ? "Search by doctor, specialty or reason."
+                  : next
+                    ? `Your ${formatDate(next.date)} visit is still awaiting approval. You can message the doctor here the moment it is confirmed.`
+                    : "Once a doctor confirms one of your appointments, you can start a conversation with them here."
               }
             />
           </CardBody>
         </Card>
       ) : (
         <div className="grid grid-auto">
-          {appointments.map((a) => {
+          {filtered.map((a) => {
             const live = isToday(a.date);
             return (
               <Card key={a.id}>
@@ -1493,11 +1529,21 @@ function ConsultationTab({ appointments, loading, upcoming, onMessage }) {
 
 /* ============================== BILLING ============================== */
 
-function BillingTab({ bills, loading, outstanding, paidTotal, onPay }) {
+function BillingTab({ bills, loading, search, outstanding, paidTotal, onPay }) {
+  const q = search.trim().toLowerCase();
   const sorted = useMemo(
     () => [...bills].sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt)),
     [bills]
   );
+
+  const filtered = q
+    ? sorted.filter(
+        (b) =>
+          String(b.id).slice(-6).toLowerCase().includes(q) ||
+          String(b.amount).includes(q) ||
+          b.status?.toLowerCase().includes(q)
+      )
+    : sorted;
 
   return (
     <>
@@ -1507,7 +1553,9 @@ function BillingTab({ bills, loading, outstanding, paidTotal, onPay }) {
           <p className="t-sm t-muted" style={{ marginTop: 4 }}>
             {loading
               ? "Loading…"
-              : `${bills.length} invoices · ${formatMoney(outstanding)} due`}
+              : q
+                ? `${filtered.length} of ${bills.length} invoices`
+                : `${bills.length} invoices · ${formatMoney(outstanding)} due`}
           </p>
         </div>
       </div>
@@ -1570,15 +1618,19 @@ function BillingTab({ bills, loading, outstanding, paidTotal, onPay }) {
             <div style={{ padding: "var(--sp-6)" }}>
               <LoadingBlock />
             </div>
-          ) : sorted.length === 0 ? (
+          ) : filtered.length === 0 ? (
             <EmptyState
               icon={Receipt}
-              title="No bills yet"
-              text="Invoices are created after your consultations."
+              title={q ? "No matching invoices" : "No bills yet"}
+              text={
+                q
+                  ? "Search by invoice number, amount or status."
+                  : "Invoices are created after your consultations."
+              }
             />
           ) : (
             <div className="list">
-              {sorted.map((b) => (
+              {filtered.map((b) => (
                 <div className="list-row" key={b.id}>
                   <span className="stat-icon tone-brand" style={{ width: 38, height: 38 }}>
                     <Receipt size={17} aria-hidden="true" />
@@ -1671,12 +1723,23 @@ function ReportModal({ record, patient, onClose, onDownload }) {
   );
 }
 
-function RecordsTab({ records, loading, onView, onDownload }) {
+function RecordsTab({ records, loading, search, onView, onDownload }) {
+  const q = search.trim().toLowerCase();
   const sorted = useMemo(
     () =>
       [...records].sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt)),
     [records]
   );
+
+  const filtered = q
+    ? sorted.filter(
+        (r) =>
+          r.title?.toLowerCase().includes(q) ||
+          r.type?.toLowerCase().includes(q) ||
+          r.doctor?.name?.toLowerCase().includes(q) ||
+          r.description?.toLowerCase().includes(q)
+      )
+    : sorted;
 
   return (
     <>
@@ -1686,7 +1749,9 @@ function RecordsTab({ records, loading, onView, onDownload }) {
           <p className="t-sm t-muted" style={{ marginTop: 4 }}>
             {loading
               ? "Loading…"
-              : `${records.length} reports shared by your doctors`}
+              : q
+                ? `${filtered.length} of ${records.length} reports`
+                : `${records.length} reports shared by your doctors`}
           </p>
         </div>
       </div>
@@ -1701,15 +1766,19 @@ function RecordsTab({ records, loading, onView, onDownload }) {
             <div style={{ padding: "var(--sp-6)" }}>
               <LoadingBlock />
             </div>
-          ) : sorted.length === 0 ? (
+          ) : filtered.length === 0 ? (
             <EmptyState
               icon={FileText}
-              title="No records yet"
-              text="Lab reports, imaging and prescriptions added by your doctor will appear here."
+              title={q ? "No matching records" : "No records yet"}
+              text={
+                q
+                  ? "Search by title, type, doctor or description."
+                  : "Lab reports, imaging and prescriptions added by your doctor will appear here."
+              }
             />
           ) : (
             <div className="list">
-              {sorted.map((r) => (
+              {filtered.map((r) => (
                 <div className="list-row" key={r.id}>
                   <span className="stat-icon tone-info" style={{ width: 38, height: 38 }}>
                     <FileText size={17} aria-hidden="true" />

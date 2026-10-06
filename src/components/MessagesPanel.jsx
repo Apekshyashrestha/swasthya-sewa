@@ -74,13 +74,19 @@ export default function MessagesPanel({
   sending,
   onDelete,
   onDeleteThread,
+  // The admin inbox holds many patients, so opening one before it is chosen
+  // exposes a conversation the user never opened. The admin sets this false to
+  // start with nothing selected. The patient has a single thread, auto-opened.
+  autoSelectFirstThread = true,
 }) {
   const [draft, setDraft] = useState("");
   const [composeOpen, setComposeOpen] = useState(initialComposeOpen);
   const [composeTargetId, setComposeTargetId] = useState("");
   const [composeText, setComposeText] = useState("");
   const own = ownSenderFor(role);
-  const active = threads.find((t) => t.threadId === activeId) ?? threads[0];
+  const active =
+    threads.find((t) => t.threadId === activeId) ??
+    (autoSelectFirstThread ? threads[0] : null);
   // A one-to-one conversation has nothing to start once it exists, so the New
   // button is reserved for the admin's multi-patient inbox.
   const canStartNew = composeTargets.length > 0 || threads.length === 0;
@@ -222,7 +228,7 @@ export default function MessagesPanel({
       </Card>
 
       <Card className="chat-main">
-        {active && (
+        {active ? (
           <>
             <div className="chat-head">
               <Avatar
@@ -338,6 +344,21 @@ export default function MessagesPanel({
               </Button>
             </div>
           </>
+        ) : (
+          <div className="chat-body">
+            <EmptyState
+              compact
+              icon={MessageSquare}
+              title={
+                threads.length === 0 ? "No conversations yet" : "Select a conversation"
+              }
+              text={
+                threads.length === 0
+                  ? `Start the conversation with your ${counterpartLabel.toLowerCase()}.`
+                  : "Choose a conversation from the list to read the messages."
+              }
+            />
+          </div>
         )}
       </Card>
 

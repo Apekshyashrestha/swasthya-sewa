@@ -422,6 +422,7 @@ ol {
 .search {
   position: relative;
   width: 100%;
+  min-width: 0;
   max-width: 400px;
 }
 .search-icon {
@@ -1594,6 +1595,10 @@ select.control-select,
   font: inherit;
   text-align: left;
   cursor: pointer;
+  /* Long single words (emails, ids, "Rs 12,000") must wrap instead of forcing
+     the sheet wider than the screen. */
+  overflow-wrap: anywhere;
+  word-break: break-word;
   transition: background-color 120ms ease;
 }
 .notif-row:last-child { border-bottom: 0; }
@@ -1601,7 +1606,7 @@ select.control-select,
    sticky header above it looks like it belongs to the next day. */
 .notif-section .notif-row:last-child { border-bottom: 0; }
 .notif-row:hover { background: var(--bg-surface-2); }
-.notif-row-body { display: grid; gap: 2px; }
+.notif-row-body { display: grid; gap: 2px; min-width: 0; }
 .notif-time { color: var(--text-muted); }
 /* Tone is carried by the row's left edge so it reads at a glance. */
 .notif-row.is-success { border-left-color: var(--success-500); }
@@ -1615,6 +1620,25 @@ select.control-select,
   padding: var(--sp-6) var(--sp-4);
   text-align: center;
   color: var(--text-muted);
+}
+
+/* Phones and small tablets. The dropdown is anchored to the bell inside the
+   topbar, so it inherits that row's width and sits in the topbar's paint layer
+   (which is what softened it). Below 768px we drop the anchor and render the
+   panel as a full-width sheet fixed just under the topbar, so every row uses
+   the whole screen width and long text wraps instead of being squeezed into a
+   narrow column. Desktop keeps the floating 360px dropdown unchanged. */
+@media (max-width: 768px) {
+  .notif { position: static; }
+  .notif-panel {
+    position: fixed;
+    top: calc(var(--topbar-h) + 8px);
+    left: var(--sp-4);
+    right: var(--sp-4);
+    width: auto;
+    max-width: none;
+    max-height: calc(100dvh - var(--topbar-h) - var(--sp-6));
+  }
 }
 /* ---------------------------- chat delete ------------------------------- */
 .chat-delete {
@@ -2181,7 +2205,12 @@ table.table {
   position: fixed;
   top: var(--sp-5);
   right: var(--sp-5);
-  z-index: 10;
+  z-index: 1;
+}
+/* The inline brand beside the toggle is only used by the phone header; on
+   tablet/desktop the green card carries the brand. */
+.auth-theme-brand {
+  display: none;
 }
 
 /* ---------------------------- Misc ---------------------------- */
@@ -2456,6 +2485,40 @@ table.table {
   .toast { min-width: 0; max-width: none; }
 }
 
+/* Phones: there is no room for the split hero, so drop the green card and lead
+   with a light brand row (icon + name + theme toggle) directly above the form. */
+@media (max-width: 767px) {
+  .auth {
+    grid-template-columns: minmax(0, 1fr);
+    grid-template-rows: 1fr;
+    min-height: 100dvh;
+  }
+  .auth-aside { display: none; }
+  .auth-main {
+    flex-direction: column;
+    align-items: center;
+    justify-content: flex-start;
+    gap: var(--sp-6);
+    overflow: visible;
+    background: var(--bg-body);
+    padding: var(--sp-5) var(--sp-4) calc(var(--sp-10) + env(safe-area-inset-bottom));
+  }
+  .auth-theme {
+    position: static;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    width: 100%;
+    padding-bottom: var(--sp-3);
+    border-bottom: 1px solid var(--border);
+  }
+  .auth-theme-brand {
+    display: flex;
+    align-items: center;
+    gap: var(--sp-3);
+  }
+}
+
 @media (max-width: 640px) {
   .grid-2,
   .grid-3,
@@ -2474,27 +2537,9 @@ table.table {
   .page-head { align-items: stretch; }
   .list-row { flex-wrap: wrap; }
   .list-side { width: 100%; justify-content: flex-end; }
-.auth-main { padding: var(--sp-6) var(--sp-4); }
-  .segmented-block { flex-direction: column; }
+.segmented-block { flex-direction: column; }
   /* Icon-only buttons, so a labelled action does not crowd the chat header. */
   .hide-sm { display: none; }
-
-  /* Login: stack the feature list so nothing runs out of horizontal room,
-     and tighten the header/form padding for a narrow viewport. */
-  .auth-aside { padding: var(--sp-6) var(--sp-4); }
-  .auth-pitch h1 { font-size: var(--text-xl); max-width: none; }
-  .auth-features {
-    grid-template-columns: minmax(0, 1fr);
-    gap: var(--sp-2);
-    margin-top: var(--sp-4);
-  }
-  .auth-feature {
-    flex-direction: row;
-    align-items: center;
-    gap: var(--sp-3);
-    font-size: var(--text-sm);
-  }
-  .auth-feature-icon { width: 32px; height: 32px; flex-shrink: 0; }
 
   /* Comfortable touch targets: 38-40px sits under the ~44px guideline. */
   .btn { height: 44px; padding: 0 var(--sp-5); }
@@ -2520,21 +2565,7 @@ table.table {
   .page { padding: var(--sp-4) var(--sp-4) calc(var(--sp-12) + env(safe-area-inset-bottom)); }
   .hero { padding: var(--sp-5); }
 
-  /* Notifications: anchoring the dropdown to the bell leaves it too narrow and
-     partly off-screen once the avatar sits beside it. Drop the anchor and let
-     the panel span the viewport as a sheet under the topbar instead. Using
-     position:fixed (not absolute) keeps it out of the sticky topbar's paint
-     layer, which is what made the text render blurred on mobile browsers. */
-  .notif { position: static; }
-  .notif-panel {
-    position: fixed;
-    top: calc(var(--topbar-h) + 8px);
-    left: var(--sp-4);
-    right: var(--sp-4);
-    width: auto;
-    max-height: calc(100dvh - var(--topbar-h) - var(--sp-6));
   }
-}
 /* ---------------------------- report preview ---------------------------- */
 .report-meta {
   margin: 0;

@@ -35,6 +35,7 @@ export function AppShell({
   brandSubtitle,
   searchValue = "",
   onSearchChange,
+  showSearch = true,
   onLogout,
   navSections = [],
   activeTab,
@@ -144,19 +145,21 @@ export function AppShell({
 
           <div className="topbar-title">{activeLabel}</div>
 
-          <div className="search">
-            <Search className="search-icon" size={17} aria-hidden="true" />
-            <input
-              type="search"
-              value={searchValue}
-              onChange={(e) => onSearchChange?.(e.target.value)}
-              placeholder={searchPlaceholder}
-              aria-label="Search"
-            />
-            <span className="search-kbd" aria-hidden="true">
-              /
-            </span>
-          </div>
+          {showSearch && (
+            <div className="search">
+              <Search className="search-icon" size={17} aria-hidden="true" />
+              <input
+                type="search"
+                value={searchValue}
+                onChange={(e) => onSearchChange?.(e.target.value)}
+                placeholder={searchPlaceholder}
+                aria-label="Search"
+              />
+              <span className="search-kbd" aria-hidden="true">
+                /
+              </span>
+            </div>
+          )}
 
           <div className="grow" />
 
@@ -175,7 +178,7 @@ export function AppShell({
             {notificationsOpen && (
               <>
                 <div
-                  className="scrim scrim-clear"
+                  className="scrim-clear"
                   onClick={onToggleNotifications}
                   aria-hidden="true"
                 />

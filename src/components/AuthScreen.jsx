@@ -112,6 +112,12 @@ export default function AuthScreen({ onSubmit, onReset, loading, error, success 
 
       <main className="auth-main">
         <div className="auth-theme">
+          <div className="auth-theme-brand">
+            <span className="brand-mark">
+              <HeartPulse size={20} aria-hidden="true" />
+            </span>
+            <span className="brand-name">Swasthya Sewa</span>
+          </div>
           <ThemeToggle />
         </div>
 

@@ -192,7 +192,9 @@ export default function AdminDashboard({ activeTab, onNavigate, search }) {
 
   const reloadMessages = async () => {
     const { data } = await api.get("/messages/all");
-    setMessages(data ?? []);
+    const list = data ?? [];
+    setMessages(list);
+    return list;
   };
 
   const sendMessage = async (thread, text) => {
@@ -223,7 +225,13 @@ export default function AdminDashboard({ activeTab, onNavigate, search }) {
     setSendingMsg(true);
     try {
       await api.post("/messages", { patientId: patient.id, text });
-      await reloadMessages();
+      const list = await reloadMessages();
+      // Open the conversation just written so the reply is visible without a
+      // second click, even though the inbox starts with nothing selected.
+      const opened = buildThreads(list, "ADMIN").find(
+        (t) => t.patientId === patient.id
+      );
+      if (opened) setActiveThread(opened.threadId);
       toast.success(`Message sent to ${patient.name}.`);
     } catch (err) {
       toast.error(err.message || "Could not send the message.");
@@ -606,6 +614,7 @@ export default function AdminDashboard({ activeTab, onNavigate, search }) {
             onDelete={deleteMessage}
             onDeleteThread={deleteConversation}
             composeTargets={composeTargets}
+            autoSelectFirstThread={false}
             loading={loading}
             sending={sendingMsg}
           />
