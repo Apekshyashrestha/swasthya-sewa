@@ -82,36 +82,40 @@ function Root() {
       setAuthSuccess("");
 
       try {
-        const loggedIn = isRegister
-          ? (
-              await register({
-                name: name.trim(),
-                email: email.trim(),
-                password,
-                phone: phone.trim(),
-              })
-            ).user
-          : await login(email.trim(), password);
+        if (isRegister) {
+          await register({
+            name: name.trim(),
+            email: email.trim(),
+            password,
+            phone: phone.trim(),
+          });
+          // The backend leaves a live session after signup; clear it so the
+          // account has to be opened from the sign-in form.
+          await logout();
+          setAuthSuccess(
+            "Account created successfully. Please sign in to continue."
+          );
+          return { registered: true };
+        }
 
-        const wantsAdmin = portal === "admin";
-        if (wantsAdmin && loggedIn?.role !== "ADMIN") {
+        const loggedIn = await login(email.trim(), password);
+
+        if (portal === "admin" && loggedIn?.role !== "ADMIN") {
           // The API granted a patient session — undo it rather than leaving the
           // user stranded on the admin tab with no permissions.
           await logout();
           setAuthError(
             "That account is not an administrator. Use the patient portal, or sign in with an admin address."
           );
-          return;
+          return undefined;
         }
 
         resetSessionState();
-        toast.success(
-          isRegister
-            ? `Welcome, ${loggedIn?.name?.split(" ")[0]}!`
-            : `Signed in as ${loggedIn?.name}`
-        );
+        toast.success(`Signed in as ${loggedIn?.name}`);
+        return undefined;
       } catch (err) {
         setAuthError(err.message || "We could not sign you in.");
+        return undefined;
       } finally {
         setAuthBusy(false);
       }
@@ -120,13 +124,15 @@ function Root() {
   );
 
   const handleReset = useCallback(
-    async (email, password) => {
+    async (email) => {
       setAuthBusy(true);
       setAuthError("");
       setAuthSuccess("");
       try {
-        await resetPassword(email.trim(), password);
-        setAuthSuccess("If that email is registered, password reset instructions are on the way.");
+        await resetPassword(email.trim());
+        setAuthSuccess(
+          `If ${email.trim()} is registered, a reset link is on its way — check your inbox and spam folder.`
+        );
       } catch (err) {
         setAuthError(err.message || "Could not reset the password.");
       } finally {
@@ -135,6 +141,11 @@ function Root() {
     },
     [resetPassword]
   );
+
+  const clearAuthNotices = useCallback(() => {
+    setAuthError("");
+    setAuthSuccess("");
+  }, []);
 
   const handleLogout = useCallback(async () => {
     await logout();
@@ -286,6 +297,7 @@ useEffect(() => {
         loading={authBusy}
         error={authError}
         success={authSuccess}
+        onDismissSuccess={clearAuthNotices}
       />
     );
   }

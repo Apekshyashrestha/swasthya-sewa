@@ -33,9 +33,10 @@ export function AuthProvider({ children }) {
     return data.user;
   }, []);
 
+  // Creating an account must not open a session on its own; the patient
+  // signs in afterwards so they actually see the login step.
   const register = useCallback(async (payload) => {
     const { data } = await api.post("/auth/register", payload);
-    setUser(data.user);
     return data;
   }, []);
 
@@ -44,8 +45,8 @@ export function AuthProvider({ children }) {
     setUser(null);
   }, []);
 
-  const resetPassword = useCallback(async (email, newPassword) => {
-    await api.post("/auth/reset-password", { email, newPassword });
+  const resetPassword = useCallback(async (email) => {
+    await api.post("/auth/reset-password", { email });
   }, []);
 
   const updateProfile = useCallback(async (updates) => {

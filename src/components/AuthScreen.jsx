@@ -29,19 +29,31 @@ const FEATURES = [
   { icon: Activity, text: "Keep lab reports and prescriptions in one place" },
 ];
 
-const BLANK_FORM = { name: "", email: "", password: "", phone: "" };
+const BLANK_FORM = { name: "", email: "", password: "", confirm: "", phone: "" };
 
-export default function AuthScreen({ onSubmit, onReset, loading, error, success }) {
+const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+
+export default function AuthScreen({
+  onSubmit,
+  onReset,
+  loading,
+  error,
+  success,
+  onDismissSuccess,
+}) {
   const [mode, setMode] = useState("login");
   const [portal, setPortal] = useState("patient");
   const [form, setForm] = useState(BLANK_FORM);
+  const [formError, setFormError] = useState("");
 
   const update = (key) => (e) =>
     setForm((prev) => ({ ...prev, [key]: e.target.value }));
 
   const switchMode = (next) => {
     setMode(next);
-    setForm((prev) => ({ ...prev, password: "" }));
+    setFormError("");
+    setForm((prev) => ({ ...prev, password: "", confirm: "" }));
+    onDismissSuccess?.();
   };
 
   const selectPortal = (next) => {
@@ -50,13 +62,40 @@ export default function AuthScreen({ onSubmit, onReset, loading, error, success 
     if (next === "admin") switchMode("login");
   };
 
-  const handleSubmit = (e) => {
+  const handleSubmit = async (e) => {
     e.preventDefault();
-    if (mode === "reset") {
-      onReset(form.email, form.password);
+    setFormError("");
+    if (!EMAIL_RE.test(form.email.trim())) {
+      setFormError("Enter a valid email address.");
       return;
     }
-    onSubmit({
+    if (mode === "reset") {
+      onReset(form.email);
+      return;
+    }
+    if (!form.password) {
+      setFormError("Enter your password.");
+      return;
+    }
+    if (form.password.length < 6) {
+      setFormError("Password must be at least 6 characters.");
+      return;
+    }
+    if (mode === "register") {
+      if (!form.name.trim()) {
+        setFormError("Enter your full name.");
+        return;
+      }
+      if (form.password !== form.confirm) {
+        setFormError("Passwords do not match.");
+        return;
+      }
+      if (!/^\d{10}$/.test(form.phone.trim())) {
+        setFormError("Phone number must be exactly 10 digits.");
+        return;
+      }
+    }
+    const result = await onSubmit({
       name: form.name,
       email: form.email,
       password: form.password,
@@ -64,6 +103,11 @@ export default function AuthScreen({ onSubmit, onReset, loading, error, success 
       isRegister: mode === "register",
       portal,
     });
+    if (result?.registered) {
+      // Land on the sign-in form but keep the "account created" notice up.
+      setMode("login");
+      setForm((prev) => ({ ...prev, password: "", confirm: "" }));
+    }
   };
 
   const heading =
@@ -73,7 +117,7 @@ export default function AuthScreen({ onSubmit, onReset, loading, error, success 
       ? "Sign in to manage your care."
       : mode === "register"
         ? "Join Swasthya Sewa in under a minute."
-        : "Choose a new password for your account.";
+        : "Enter your email and we'll send you a link to choose a new password.";
 
   return (
     <div className="auth">
@@ -148,10 +192,10 @@ export default function AuthScreen({ onSubmit, onReset, loading, error, success 
             </div>
           )}
 
-          {error && (
+          {(formError || error) && (
             <div className="alert alert-error">
               <AlertCircle size={16} aria-hidden="true" />
-              <span>{error}</span>
+              <span>{formError || error}</span>
             </div>
           )}
           {success && (
@@ -161,7 +205,7 @@ export default function AuthScreen({ onSubmit, onReset, loading, error, success 
             </div>
           )}
 
-          <form className="auth-form" onSubmit={handleSubmit}>
+          <form className="auth-form" onSubmit={handleSubmit} noValidate>
             {mode === "register" && (
               <Field label="Full name" htmlFor="auth-name">
                 <Input
@@ -194,114 +238,139 @@ export default function AuthScreen({ onSubmit, onReset, loading, error, success 
                 <Input
                   id="auth-phone"
                   type="tel"
+                  inputMode="numeric"
                   icon={Phone}
-                  placeholder="+977 98XXXXXXXX"
+                  placeholder="98XXXXXXXX"
                   value={form.phone}
-                  onChange={update("phone")}
+                  onChange={(e) =>
+                    setForm((prev) => ({
+                      ...prev,
+                      phone: e.target.value.replace(/\D/g, "").slice(0, 10),
+                    }))
+                  }
                   autoComplete="tel"
+                  maxLength={10}
+                  pattern="\d{10}"
+                  title="Enter a 10-digit mobile number"
+                  required
                 />
               </Field>
             )}
 
-            <Field
-              label={mode === "reset" ? "New password" : "Password"}
-              htmlFor="auth-password"
-            >
-              <Input
-                id="auth-password"
-                type="password"
-                icon={Lock}
-                placeholder="••••••••"
-                value={form.password}
-                onChange={update("password")}
-                autoComplete={
-                  mode === "login" ? "current-password" : "new-password"
-                }
-                required
-                minLength={6}
-              />
-            </Field>
+            {mode !== "reset" && (
+              <Field label="Password" htmlFor="auth-password">
+                <Input
+                  id="auth-password"
+                  type="password"
+                  icon={Lock}
+                  placeholder="••••••••"
+                  value={form.password}
+                  onChange={update("password")}
+                  autoComplete={
+                    mode === "login" ? "current-password" : "new-password"
+                  }
+                  required
+                  minLength={6}
+                />
+              </Field>
+            )}
+
+            {mode === "register" && (
+              <Field label="Confirm password" htmlFor="auth-confirm">
+                <Input
+                  id="auth-confirm"
+                  type="password"
+                  icon={Lock}
+                  placeholder="••••••••"
+                  value={form.confirm}
+                  onChange={update("confirm")}
+                  autoComplete="new-password"
+                  required
+                  minLength={6}
+                />
+              </Field>
+            )}
 
             <Button type="submit" block loading={loading} iconRight={ArrowRight}>
               {mode === "login"
                 ? "Sign in"
                 : mode === "register"
                   ? "Create account"
-                  : "Update password"}
+                  : "Send reset link"}
             </Button>
           </form>
 
-          <div className="auth-demo">
-            {portal === "patient" ? (
-              <>
-                New patients can{" "}
-                <button
-                  type="button"
-                  className="link-btn"
-                  onClick={() => switchMode("register")}
-                >
-                  create an account
-                </button>{" "}
-                with any email.
-              </>
-            ) : (
-              <>
-                The administrator account is created by the hospital. Please
-                sign in with the admin credentials.
-              </>
-            )}
-          </div>
+          {mode !== "reset" && (
+            <div className="auth-demo">
+              {portal === "patient" ? (
+                <>
+                  New patients can{" "}
+                  <button
+                    type="button"
+                    className="link-btn"
+                    onClick={() => switchMode("register")}
+                  >
+                    create an account
+                  </button>{" "}
+                  with any email.
+                </>
+              ) : (
+                <>
+                  The administrator account is created by the hospital. Please
+                  sign in with the admin credentials.
+                </>
+              )}
+            </div>
+          )}
 
-          <div className="auth-switch">
-            {mode === "login" && (
-              <>
-                {portal === "patient" && (
-                  <>
-                    New here?{" "}
-                    <button
-                      type="button"
-                      className="link-btn"
-                      onClick={() => switchMode("register")}
-                    >
-                      Create an account
-                    </button>
-                    {" · "}
-                  </>
-                )}
-                <button
-                  type="button"
-                  className="link-btn"
-                  onClick={() => switchMode("reset")}
-                >
-                  Forgot password?
-                </button>
-              </>
-            )}
-            {mode === "register" && (
-              <>
-                Already have an account?{" "}
-                <button
-                  type="button"
-                  className="link-btn"
-                  onClick={() => switchMode("login")}
-                >
-                  Sign in
-                </button>
-              </>
-            )}
-            {mode === "reset" && (
-              <>
-                Remembered it?{" "}
-                <button
-                  type="button"
-                  className="link-btn"
-                  onClick={() => switchMode("login")}
-                >
-                  Back to sign in
-                </button>
-              </>
-            )}
-          </div>
+          {!(mode === "login" && portal === "admin") && (
+            <div className="auth-switch">
+              {mode === "login" && (
+                <>
+                  New here?{" "}
+                  <button
+                    type="button"
+                    className="link-btn"
+                    onClick={() => switchMode("register")}
+                  >
+                    Create an account
+                  </button>
+                  {" · "}
+                  <button
+                    type="button"
+                    className="link-btn"
+                    onClick={() => switchMode("reset")}
+                  >
+                    Forgot password?
+                  </button>
+                </>
+              )}
+              {mode === "register" && (
+                <>
+                  Already have an account?{" "}
+                  <button
+                    type="button"
+                    className="link-btn"
+                    onClick={() => switchMode("login")}
+                  >
+                    Sign in
+                  </button>
+                </>
+              )}
+              {mode === "reset" && (
+                <>
+                  Remembered it?{" "}
+                  <button
+                    type="button"
+                    className="link-btn"
+                    onClick={() => switchMode("login")}
+                  >
+                    Back to sign in
+                  </button>
+                </>
+              )}
+            </div>
+          )}
         </div>
       </main>
     </div>

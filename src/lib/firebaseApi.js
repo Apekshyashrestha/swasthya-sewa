@@ -402,7 +402,6 @@ async function clientRequest(method, path, body = {}) {
         throw blocked;
       }
       if (body.name) await updateProfile(cred.user, { displayName: body.name });
-      await sendEmailVerification(cred.user).catch(() => null);
       const user = await ensureProfile(cred.user, { name: body.name, phone: body.phone, email: body.email });
       return { data: { user, message: 'Account created successfully' } };
     });
